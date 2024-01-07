@@ -1,0 +1,25 @@
+{
+  "manifest_version": 3,
+  "name": "Omnitelecom extra features",
+  "version": "1.0",
+  "description": "Provides extra functionality to the Omnitelecom dashboard",
+  "permissions": ["activeTab","storage", "notifications", "unlimitedStorage"],
+  "action": {
+      "default_popup": "popup.html"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://u100003361.opil.omnitelecom.com/dashboard/*"],
+      "js": ["content.js"]
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": [],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "host_permissions": [
+    "https://u100003361.opil.omnitelecom.com/"
+  ]
+}

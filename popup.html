@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Extension Settings</title>
+    <style>
+        /* Add any desired styling here */
+        body {
+            width: 200px;  /* Adjust as necessary */
+        }
+    </style>
+</head>
+<body>
+    <h4>Settings</h4>
+    <label>
+        Enable feature:
+        <input id="enableCheckbox" type="checkbox">
+    </label>
+    <br>
+    <br>
+    <label>
+        Minutes to trigger flashing:
+        <input id="minutesInput" type="number" min="0">
+    </label>
+    <br>
+    <label>
+        Enable color flash:
+        <input id="enableColor" type="checkbox">
+    </label>
+    <br>
+    <label>
+        Enable sound:
+        <input id="enableSound" type="checkbox">
+    </label>
+    <br>
+    <label>
+        Send notification:
+        <input id="enableNotification" type="checkbox">
+    </label>
+    <br>
+    <button id="saveButton">Save</button>
+</body>
+<script src="popup.js"></script>  <!-- Separate JS file for the popup logic -->
+</html>
