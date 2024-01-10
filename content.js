@@ -174,14 +174,36 @@ function getNewExceedingCalls(currentExceedingCalls, newExeedingCalls) {
     return newCalls; // Returns an array of new rows
 }
 
-function isTimeExceeded(minutesArray, minutesToTrigger) {
-    for (let minutes of minutesArray) {
-        if (minutes > minutesToTrigger) {
-            return true;
+
+
+function isTimeExceeded(minutesToTrigger) {
+    var callItems = document.querySelectorAll('.grid__item.callTR');
+    if(callItems.length) {
+        callItems.forEach(function(item) {
+            var itemText = item.textContent.trim();
+            var timerSpan = item.querySelector('.timer');
+            var timerText = timerSpan ? timerSpan.textContent.trim() : "";
+            var timeExceedsThreshold = isTimeGreaterThanTrigger(timerText, minutesToTrigger);
+            console.log("Timer: ", itemText);
+            console.log(timerText);
+            console.log(timeExceedsThreshold);
+            
+    
+            return timeExceedsThreshold;
         }
+        )
     }
-    return false;
+    console.log("\n\n");
 }
+
+
+function isTimeGreaterThanTrigger(timeString, minutesToTrigger) {
+    var parts = timeString.split(':');
+    var minutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    console.log("Minutes: ", minutes)
+    return minutes >= minutesToTrigger; // 180 seconds = 3 minutes
+}
+
 
 function handleSound(soundOn, lastPlayedTime){
     const now = Date.now();
@@ -194,49 +216,79 @@ function handleSound(soundOn, lastPlayedTime){
     }
 }
 
-// Check what bg color the screen is and flash screen
-function flashScreen(){
-    if (document.body.style.backgroundColor == DEFAULT_BG_COLOR){
-        document.body.style.backgroundColor = TRIGGER_BG_COLOR;
+
+function changeLayout(){
+    // Remove left col
+    var leftCol = document.querySelector('.left-column.ltr');
+    if (leftCol){
+        leftCol.remove();
     }
-    else{
-        document.body.style.backgroundColor = DEFAULT_BG_COLOR;
-    }
+
+    // Move agents and waiting calls to top
+    var dropArea = document.getElementById('drop-area');
+    var waitingCalls = document.querySelector('.panel.waiting-calls');
+    var parent = document.body;
+    parent.insertBefore(waitingCalls, parent.firstChild);
+    parent.insertBefore(dropArea, parent.firstChild);
 }
+
+function changeColors(Trigger){
+        // Incoming calls container
+        var container = document.querySelector('.panel.waiting-calls');
+        if (Trigger){
+            container.style.backgroundColor = 'red'; // Replace 'lightblue' with your desired color
+        }
+        
+        var callItems = document.querySelectorAll('.grid__item.callTR');
+        if(callItems.length) {
+            callItems.forEach(function(item) {
+                var itemText = item.textContent.trim();
+    
+                if (itemText.includes('Installers_(A)_Queue')) {
+                    if (Trigger){
+                        item.style.backgroundColor = 'red'; // Color for Installers_(B)_Queue
+                    } else {
+                        item.style.backgroundColor = 'lightgreen';
+                    }                
+                } else if (itemText.includes('Installers_(B)_Queue')) {
+                    if (Trigger){
+                        item.style.backgroundColor = 'red'; // Color for Installers_(B)_Queue
+                    } else {
+                        item.style.backgroundColor = 'lightgreen';
+                    }
+
+                } else {
+                    item.style.backgroundColor = 'lightgrey'; // Default color for other types
+                }
+            });
+        }
+}
+
+
 
 // The main function which orchestrates everything
 function main() {
-
-
-
-
     let lastPlayedTime = 0;  // Default value
     let currentExceedingCalls = []; // To store rows from the last check
     let currColor = DEFAULT_BG_COLOR;
 
-    // console.log("in main")
     // Fetch user settings from storage
     chrome.storage.local.get(['minutesToTrigger', 'isEnabled', 'flashOn','soundOn', 'lastPlayedTime', 'notificationOn', 'currentExceedingCalls'], function(items) {
-        // console.log("in local")
         lastPlayedTime = items.lastPlayedTime || 0;
         let currentExceedingCalls = items.currentExceedingCalls || [];
 
         // Only proceed if the feature is enabled
         if (items.isEnabled) {
-            var leftCol = document.querySelector('.left-column.ltr');
-            if (leftCol){
-                leftCol.remove();
-            }
-        
-            var dropArea = document.getElementById('drop-area');
-            var waitingCalls = document.querySelector('.panel.waiting-calls');
-            var parent = document.body;
-            parent.insertBefore(waitingCalls, parent.firstChild);
-            parent.insertBefore(dropArea, parent.firstChild);
+            let Trigger = isTimeExceeded(1);
+            console.log("Main Trigger: ", Trigger)
+            
+            changeLayout();
+            changeColors(Trigger);
 
 
-            console.log("parseTableData : ");
-            const tableData = parseTableData();
+            // console.log("parseTableData : ");
+            // const tableData = parseTableData();
+
             // const minutesData = extractMinutesFromData(tableData);
             // const deviationTrigger = isTimeExceeded(minutesData, items.minutesToTrigger);
             // console.log("extractMinutesFromData");
@@ -286,6 +338,11 @@ function main() {
         //     currColor = DEFAULT_BG_COLOR;
         // }
 
+        setTimeout(function() {
+            console.log("refreshing...")
+            location.reload();
+            // Code to execute after the delay
+        }, 60000);
     });
 }
 
