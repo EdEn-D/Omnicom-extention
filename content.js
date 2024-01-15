@@ -15,7 +15,7 @@ function sendMessageToTelegramGroup(message) {
     const apiUrl = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
 
     const payload = {
-        chat_id: TELEGRAM_CHAT_ID_TEST,
+        chat_id: TELEGRAM_CHAT_ID,
         text: message
     };
 
@@ -39,22 +39,21 @@ function sendMessageToTelegramGroup(message) {
     });
 }
 
-function parseRowToMessage(row) {
-    const headers = [
-        'שם התור',
-        'זמן כניסת שיחה',
-        'מספר מחויג',
-        'מזהה שיחה',
-        'מידע מצורף',
-        'זמן המתנה כולל',
-        'זמן המתנה בתור'
-    ];
-
+function parseRowToMessage(dict) {
     let messageParts = [];
-
-    for (let i = 0; i < headers.length; i++) {
-        messageParts.push(`${headers[i]}: ${row[i]}`);
+    messageParts.push("Caller waiting for agent");
+    messageParts.push("Queue : Installers B");
+    for (var key in dict) {
+        if (dict.hasOwnProperty(key)) 
+        {
+            if (key == "callerid")
+                messageParts.push(`${key}: ${dict[key]}`);                
+            if (key == "timer")
+                messageParts.push(`${key}: ${dict[key]}`);
+            // console.log(key + ': ' + dict[key]);
+        }
     }
+
 
     return messageParts.join('\n');
 }
@@ -88,7 +87,7 @@ function parseTableData_old(data) {
     return tableData;
 }
 
-function parseTableData(data) {
+function parseTableData() {
     // Select all elements with the class 'grid__item' and 'callTR'
     var elements = document.querySelectorAll('.grid__item.callTR');
 
@@ -111,7 +110,7 @@ function parseTableData(data) {
     });
 
     // Now dataArray contains all the extracted data
-    console.log(dataArray);
+    // console.log(dataArray);
     return dataArray;
 
 }
@@ -133,77 +132,44 @@ function extractMinutesFromData(tableData) {
 
 // returns an array of callers which are exceeding the triger time
 function getExeedingCallerList(tableData, minutesToTrigger) {
-    let resultRows = [];
+    var resultRows = [];
 
-    tableData.forEach(row => {
-        const timestamp = row[6]; // Assuming the 7th element is the timestamp
-        const [hours, minutes, seconds] = timestamp.split(':').map(Number);
+    tableData.forEach(function(item) {
+        if (item.timer && item.queue && item.queue.includes('Installers_(A)_Queue')) {
+            var timeParts = item.timer.split(':');
+            var itemMinutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
 
-        const totalMinutes = hours * 60 + minutes + seconds / 60;
-
-        // Check if the total minutes for this row exceed the minutesToTrigger
-        if (totalMinutes > minutesToTrigger) {
-            resultRows.push(row); // Push the entire row to the result
+            if (itemMinutes >= minutesToTrigger) {
+                resultRows.push(item);
+            }
         }
     });
-    //chrome.storage.local.set({'currentExceedingCalls': resultRows}); // this shouldn't be done here becasue i want to later compare this iteration with the previous iteration
+
     return resultRows;
 }
 
-// returns true if there is a new caller that enters the exceeding list, then updates current list
-function getNewExceedingCalls(currentExceedingCalls, newExeedingCalls) {
+// Returns an array of new callers based on the 'callerid'
+function getNewExceedingCalls(currentExceedingCalls, newExceedingCalls) {
     let newCalls = []; // Array to hold new calls
-    if (newExeedingCalls.length == 0)
+
+    // Check if the newExceedingCalls list is empty
+    if (newExceedingCalls.length === 0) {
         return newCalls;
+    }
 
-    const currentPhoneNumbers = currentExceedingCalls.map(row => row[3]); // Extract phone numbers from current rows
-    
+    // Extract 'callerid' from currentExceedingCalls
+    const currentCallerIds = currentExceedingCalls.map(call => call.callerid);
 
-    for (let newRow of newExeedingCalls) {
-        if (!currentPhoneNumbers.includes(newRow[3])) {
-            // If a new phone number is found that wasn't in the previous list
-            newCalls.push(newRow);
+    // Iterate over newExceedingCalls to find new callers
+    for (let call of newExceedingCalls) {
+        if (!currentCallerIds.includes(call.callerid)) {
+            // If a new callerid is found that wasn't in the previous list
+            newCalls.push(call);
         }
     }
 
-    // if (newCalls.length > 0) {
-    //     // Update the storage if new calls are found
-    //     chrome.storage.local.set({'currentExceedingCalls': newExeedingCalls});
-    // }
-
-    return newCalls; // Returns an array of new rows
+    return newCalls; // Returns an array of new calls
 }
-
-
-
-function isTimeExceeded(minutesToTrigger) {
-    var callItems = document.querySelectorAll('.grid__item.callTR');
-    if(callItems.length) {
-        callItems.forEach(function(item) {
-            var itemText = item.textContent.trim();
-            var timerSpan = item.querySelector('.timer');
-            var timerText = timerSpan ? timerSpan.textContent.trim() : "";
-            var timeExceedsThreshold = isTimeGreaterThanTrigger(timerText, minutesToTrigger);
-            console.log("Timer: ", itemText);
-            console.log(timerText);
-            console.log(timeExceedsThreshold);
-            
-    
-            return timeExceedsThreshold;
-        }
-        )
-    }
-    console.log("\n\n");
-}
-
-
-function isTimeGreaterThanTrigger(timeString, minutesToTrigger) {
-    var parts = timeString.split(':');
-    var minutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
-    console.log("Minutes: ", minutes)
-    return minutes >= minutesToTrigger; // 180 seconds = 3 minutes
-}
-
 
 function handleSound(soundOn, lastPlayedTime){
     const now = Date.now();
@@ -232,12 +198,51 @@ function changeLayout(){
     parent.insertBefore(dropArea, parent.firstChild);
 }
 
-function changeColors(Trigger){
+function isTimeExceeded(minutesToTrigger) {
+    var callItems = document.querySelectorAll('.grid__item.callTR');
+    if(callItems.length) {
+        callItems.forEach(function(item) {
+            var itemText = item.textContent.trim();
+            var timerSpan = item.querySelector('.timer');
+            var timerText = timerSpan ? timerSpan.textContent.trim() : "";
+            var timeExceedsThreshold = isTimeGreaterThanTrigger(timerText, minutesToTrigger);
+            console.log("Timer: ", itemText);
+            console.log(timerText);
+            console.log(timeExceedsThreshold);
+            
+    
+            return timeExceedsThreshold;
+        }
+        )
+    }
+    console.log("\n\n");
+}
+
+
+function isTimeGreaterThanTrigger(timeString, minutesToTrigger) {
+    var parts = timeString.split(':');
+    var minutes = parseInt(parts[0], 10) * 60 + parseInt(parts[1], 10);
+    return minutes >= minutesToTrigger; // 180 seconds = 3 minutes
+}
+
+function isTimeExceededPerItem(item ,minutesToTrigger) {    
+    var itemText = item.textContent.trim();
+    var timerSpan = item.querySelector('.timer');
+    var timerText = timerSpan ? timerSpan.textContent.trim() : "";
+    var timeExceedsThreshold = isTimeGreaterThanTrigger(timerText, minutesToTrigger);
+
+    console.log("Timer: ", itemText);
+    console.log(timerText);
+    console.log(timeExceedsThreshold);
+    console.log("\n\n");
+    
+    return timeExceedsThreshold;
+}
+
+function changeColors(minutesToTrigger){
         // Incoming calls container
         var container = document.querySelector('.panel.waiting-calls');
-        if (Trigger){
-            container.style.backgroundColor = 'red'; // Replace 'lightblue' with your desired color
-        }
+
         
         var callItems = document.querySelectorAll('.grid__item.callTR');
         if(callItems.length) {
@@ -245,14 +250,22 @@ function changeColors(Trigger){
                 var itemText = item.textContent.trim();
     
                 if (itemText.includes('Installers_(A)_Queue')) {
+                    let Trigger = isTimeExceededPerItem(item, minutesToTrigger)
+
                     if (Trigger){
-                        item.style.backgroundColor = 'red'; // Color for Installers_(B)_Queue
+                        item.style.backgroundColor = 'orange'; // Color for Installers_(B)_Queue
+                        container.style.backgroundColor = 'red'; // Replace 'lightblue' with your desired color
+
                     } else {
                         item.style.backgroundColor = 'lightgreen';
                     }                
                 } else if (itemText.includes('Installers_(B)_Queue')) {
+                    let Trigger = isTimeExceededPerItem(item, minutesToTrigger)
+
                     if (Trigger){
-                        item.style.backgroundColor = 'red'; // Color for Installers_(B)_Queue
+                        item.style.backgroundColor = 'orange'; // Color for Installers_(B)_Queue
+                        container.style.backgroundColor = 'red'; // Replace 'lightblue' with your desired color
+
                     } else {
                         item.style.backgroundColor = 'lightgreen';
                     }
@@ -273,21 +286,20 @@ function main() {
     let currColor = DEFAULT_BG_COLOR;
 
     // Fetch user settings from storage
-    chrome.storage.local.get(['minutesToTrigger', 'isEnabled', 'flashOn','soundOn', 'lastPlayedTime', 'notificationOn', 'currentExceedingCalls'], function(items) {
+    chrome.storage.local.get(['minutesToTrigger', 'isEnabled', 'flashOn', 'changeLayoutOn','soundOn', 'lastPlayedTime', 'notificationOn', 'currentExceedingCalls'], function(items) {
         lastPlayedTime = items.lastPlayedTime || 0;
         let currentExceedingCalls = items.currentExceedingCalls || [];
 
         // Only proceed if the feature is enabled
         if (items.isEnabled) {
-            let Trigger = isTimeExceeded(1);
-            console.log("Main Trigger: ", Trigger)
+            console.log("-+-+-+-+-+-+-+-+-+-+-+-+-+-")
             
-            changeLayout();
-            changeColors(Trigger);
+            if (items.changeLayoutOn)
+                changeLayout();
+            if (items.flashOn)
+                changeColors(items.minutesToTrigger);
 
 
-            // console.log("parseTableData : ");
-            // const tableData = parseTableData();
 
             // const minutesData = extractMinutesFromData(tableData);
             // const deviationTrigger = isTimeExceeded(minutesData, items.minutesToTrigger);
@@ -295,27 +307,39 @@ function main() {
             // console.log(minutesData);
             
 
+            var tableData = parseTableData();
+            console.log(tableData);
+            // Iterate over the list
+            tableData.forEach(function(dict) {
+                // Iterate over each dictionary
+                for (var key in dict) {
+                    if (dict.hasOwnProperty(key)) {
+                        console.log(key + ': ' + dict[key]);
+                    }
+                }
+            });
+            const exeedingCalls = getExeedingCallerList(tableData, items.minutesToTrigger)
 
-            // const exeedingCalls = getExeedingCallerList(tableData, items.minutesToTrigger)
-            // console.log('current exeedingCalls : ');
-            // console.log(exeedingCalls);
-            // console.log(currentExceedingCalls);
+            console.log("exeedingCalls: ");
+            console.log(exeedingCalls);
+            console.log('current exeedingCalls : ');
+            console.log(currentExceedingCalls);
 
-            // const newExeedingCalls = getNewExceedingCalls(currentExceedingCalls, exeedingCalls)
-            // console.log('newExeedingCalls : ');
-            // console.log(newExeedingCalls);
+            const newExeedingCalls = getNewExceedingCalls(currentExceedingCalls, exeedingCalls)
+            console.log('newExeedingCalls : ');
+            console.log(newExeedingCalls);
 
-            // chrome.storage.local.set({'currentExceedingCalls': exeedingCalls});
-            // console.log("---")
-            // // if there are new callers exeeding the time, play sound and notify telegram
-            // if (newExeedingCalls.length > 0){
-            //     console.log("new client is calling")
-            //     handleSound(items.soundOn, lastPlayedTime); // change to play every time a new caller exeeds
-            //     if (items.notificationOn) {
-            //         //sendMessageToTelegramGroup('Hello from my Telegram bot!');
-            //         handleNewCallsNotification(newExeedingCalls);
-            //     }
-            // }
+            chrome.storage.local.set({'currentExceedingCalls': exeedingCalls});
+            console.log("---")
+            // if there are new callers exeeding the time, play sound and notify telegram
+            if (newExeedingCalls.length > 0){
+                console.log("new client is calling")
+                handleSound(items.soundOn, lastPlayedTime); // change to play every time a new caller exeeds
+                if (items.notificationOn) {
+                    //sendMessageToTelegramGroup('Hello from my Telegram bot!');
+                    handleNewCallsNotification(newExeedingCalls);
+                }
+            }
 
             // The bg will be red whenever there is at least one caller that is exeeding the time
             // if (deviationTrigger) {

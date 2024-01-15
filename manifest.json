@@ -15,7 +15,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": [],
+      "resources": ["notification.m4a", "notification.mp3"],
       "matches": ["<all_urls>"]
     }
   ],
