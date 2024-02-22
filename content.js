@@ -135,7 +135,7 @@ function getExeedingCallerList(tableData, minutesToTrigger) {
     var resultRows = [];
 
     tableData.forEach(function(item) {
-        if (item.timer && item.queue && item.queue.includes('Installers_(A)_Queue')) {
+        if (item.timer && item.queue && item.queue.includes('Installers_(B)_Queue')) {
             var timeParts = item.timer.split(':');
             var itemMinutes = parseInt(timeParts[0], 10) * 60 + parseInt(timeParts[1], 10);
 
